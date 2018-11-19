@@ -9,8 +9,8 @@ model.asVoteData = data => {
   const {division} = data
 
   const tallies = {
-    yes: division.tallies.taVotes.members.map(member => member.member.showAs),
-    no: division.tallies.nilVotes.members.map(member => member.member.showAs)
+    yes: division.tallies.taVotes.members.map(member => member.member.memberCode),
+    no: division.tallies.nilVotes.members.map(member => member.member.memberCode)
   }
 
   const output = {
@@ -26,7 +26,21 @@ model.asVoteData = data => {
 }
 
 model.asMember = data => {
-  console.log(data)
+  const {memberships} = data.member
+  const output = {
+    id: data.member.memberCode,
+    name: data.member.fullName,
+    dates: data.member.dateRange
+  }
+
+  output.roles = memberships.map(membership => {
+    return {
+      represents: membership.membership.represents.map(data => data.represent.showAs),
+      parties: membership.membership.parties.map(party => party.party.partyCode)
+    }
+  })
+
+  return output
 }
 
 const requests = {}
@@ -50,17 +64,15 @@ requests.getMembers = async () => {
 const analyses = {}
 
 analyses.votesPerMember = async () => {
-  const members = await requests.getMembers()
   const votes = await requests.getVotes()
-  const coallated = {}
-
-  console.log(JSON.stringify(members, null, 2))
+  const members = await requests.getMembers()
+  const coalated = {}
 
   votes.map(vote => {
     for (let opt of ['yes', 'no']) {
       for (let member of vote.tallies[opt]) {
-        if (!coallated[member]) {
-          coallated[member] = {
+        if (!coalated[member]) {
+          coalated[member] = {
             votes: {
               yes: new Set([]),
               no: new Set([])
@@ -68,18 +80,18 @@ analyses.votesPerMember = async () => {
           }
         }
 
-        coallated[member].votes[opt].add(vote.debate)
+        coalated[member].votes[opt].add(vote.debate)
       }
     }
   })
 
-  for (const member of Object.keys(coallated)) {
+  for (const member of Object.keys(coalated)) {
     for (const opt of ['yes', 'no']) {
-      coallated[member].votes[opt] = Array.from(coallated[member].votes[opt]).sort()
+      coalated[member].votes[opt] = Array.from(coalated[member].votes[opt]).sort()
     }
   }
 
-  return coallated
+  return coalated
 }
 
 const main = async () => {
